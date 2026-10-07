@@ -1,0 +1,465 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: guidance
+    description: Maintained visa guidance and regulation updates
+  - name: alerts
+    description: Anonymous in-app change alerts
+  - name: plans
+    description: Saved pathway plans for a private browser workspace
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /guidance:
+    get:
+      operationId: listGuidance
+      tags: [guidance]
+      summary: List maintained visa guidance
+      description: Returns visa pathway records from the maintained catalog, including review and source metadata.
+      responses:
+        "200":
+          description: Maintained visa guidance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuidanceResponse"
+        "503":
+          description: Guidance data is temporarily unavailable
+  /visa-resources:
+    get:
+      operationId: listVisaResources
+      tags: [guidance]
+      summary: List destination-specific official visa resources
+      description: Returns maintained official source links matching destination, purpose, and passport applicability. Changed source pages are marked for review; detected content is never auto-published as visa guidance.
+      parameters:
+        - name: destinationCountry
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 80 }
+        - name: purposeTag
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [work, study, visit, business, training]
+        - name: passportCountry
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 80 }
+      responses:
+        "200":
+          description: Matching maintained source links
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisaResourcesResponse"
+        "400":
+          description: Invalid resource query
+        "503":
+          description: Visa resource data is temporarily unavailable
+  /changes:
+    get:
+      operationId: listChanges
+      tags: [guidance]
+      summary: List regulation changes
+      description: Returns reviewed updates covering visas, fees, occupations, and policy.
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: Regulation change feed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChangesResponse"
+        "400":
+          description: Invalid query
+        "503":
+          description: Change data is temporarily unavailable
+  /alerts:
+    post:
+      operationId: createAlertSubscription
+      tags: [alerts]
+      summary: Subscribe to in-app change alerts
+      description: Creates an anonymous subscription without collecting an email address, account, or profile.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlertSubscriptionInput"
+      responses:
+        "201":
+          description: Alert subscription created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertSubscriptionResponse"
+        "400":
+          description: Invalid alert topics
+  /plans:
+    get:
+      operationId: listSavedPlans
+      tags: [plans]
+      summary: List saved pathway plans
+      description: Returns plans saved in the current private browser workspace.
+      responses:
+        "200":
+          description: Saved plans
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedPlansResponse"
+    post:
+      operationId: createSavedPlan
+      tags: [plans]
+      summary: Save a pathway plan
+      description: Saves a pathway snapshot, comparison, roadmap progress, document checklist, and cost assumptions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SavedPlanInput"
+      responses:
+        "201":
+          description: Saved plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedPlan"
+        "400":
+          description: Invalid saved plan
+  /plans/{id}:
+    get:
+      operationId: getSavedPlan
+      tags: [plans]
+      summary: Open a saved pathway plan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Saved plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedPlan"
+        "404":
+          description: Saved plan not found
+    patch:
+      operationId: updateSavedPlan
+      tags: [plans]
+      summary: Update saved pathway progress
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SavedPlanUpdate"
+      responses:
+        "200":
+          description: Updated saved plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedPlan"
+        "400":
+          description: Invalid saved plan
+        "404":
+          description: Saved plan not found
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    GuidanceItem:
+      type: object
+      properties:
+        id: { type: string }
+        visaSubclass: { type: string }
+        name: { type: string }
+        shortName: { type: string }
+        fitScore: { type: integer }
+        signal: { type: string }
+        duration: { type: string }
+        governmentFee: { type: string }
+        stage: { type: string }
+        note: { type: string }
+        eligibilityChecks:
+          type: array
+          items: { type: string }
+        sourceName: { type: string }
+        sourceUrl: { type: string, format: uri }
+        reviewedOn: { type: string, format: date }
+        authority:
+          type: string
+          enum: [official, community]
+      required: [id, visaSubclass, name, shortName, fitScore, signal, duration, governmentFee, stage, note, eligibilityChecks, sourceName, sourceUrl, reviewedOn, authority]
+    GuidanceResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/GuidanceItem"
+        reviewedAt: { type: string, format: date-time }
+        sourcePolicy: { type: string }
+      required: [items, reviewedAt, sourcePolicy]
+    VisaResource:
+      type: object
+      properties:
+        id: { type: string }
+        destinationCountry: { type: string }
+        purposeTags:
+          type: array
+          items: { type: string }
+        recordKind:
+          type: string
+          enum: [pathway, stream, finder]
+        pathwayName: { type: string }
+        title: { type: string }
+        description: { type: string }
+        sourceName: { type: string }
+        sourceUrl: { type: string, format: uri }
+        reviewedOn: { type: string, format: date }
+        authority:
+          type: string
+          enum: [official, community]
+        monitoringStatus:
+          type: string
+          enum: [pending_policy_review, not_checked, current, changed_pending_review, unavailable]
+        lastCheckedAt: { type: ["string", "null"], format: date-time }
+        pendingSourceUrl: { type: ["string", "null"], format: uri }
+      required: [id, destinationCountry, purposeTags, recordKind, pathwayName, title, description, sourceName, sourceUrl, reviewedOn, authority, monitoringStatus, lastCheckedAt, pendingSourceUrl]
+    VisaResourcesResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/VisaResource" }
+        reviewedAt: { type: string, format: date-time }
+        sourcePolicy: { type: string }
+      required: [items, reviewedAt, sourcePolicy]
+    RegulationChange:
+      type: object
+      properties:
+        id: { type: string }
+        changeType:
+          type: string
+          enum: [new_visa, fee_change, occupation_list, policy_update]
+        title: { type: string }
+        summary: { type: string }
+        publishedOn: { type: string, format: date }
+        effectiveOn: { type: string, format: date, nullable: true }
+        sourceName: { type: string }
+        sourceUrl: { type: string, format: uri }
+        reviewedOn: { type: string, format: date }
+        authority:
+          type: string
+          enum: [official, community]
+      required: [id, changeType, title, summary, publishedOn, effectiveOn, sourceName, sourceUrl, reviewedOn, authority]
+    ChangesResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RegulationChange"
+        reviewedAt: { type: string, format: date-time }
+      required: [items, reviewedAt]
+    AlertSubscriptionInput:
+      type: object
+      properties:
+        topics:
+          type: array
+          minItems: 1
+          maxItems: 4
+          uniqueItems: true
+          items:
+            type: string
+            enum: [new_visa, fee_change, occupation_list, policy_update]
+      required: [topics]
+    AlertSubscriptionResponse:
+      type: object
+      properties:
+        subscribed: { type: boolean }
+        topics:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+        privacyNote: { type: string }
+      required: [subscribed, topics, createdAt, privacyNote]
+    SavedPlanPathway:
+      type: object
+      properties:
+        visaSubclass: { type: string }
+        name: { type: string }
+        shortName: { type: string }
+        fitScore: { type: integer, minimum: 0, maximum: 100 }
+        governmentFee: { type: string }
+        stage: { type: string }
+      required: [visaSubclass, name, shortName, fitScore, governmentFee, stage]
+    SavedPlanComparisonItem:
+      type: object
+      properties:
+        visaSubclass: { type: string }
+        name: { type: string }
+        shortName: { type: string }
+        fitScore: { type: integer, minimum: 0, maximum: 100 }
+        governmentFee: { type: string }
+        stage: { type: string }
+      required: [visaSubclass, name, shortName, fitScore, governmentFee, stage]
+    SavedPlanRoadmap:
+      type: object
+      properties:
+        roadmapId: { type: string }
+        roadmapLabel: { type: string }
+        completedStepIds:
+          type: array
+          items: { type: integer, minimum: 1 }
+      required: [roadmapId, roadmapLabel, completedStepIds]
+    SavedPlanDocument:
+      type: object
+      properties:
+        id: { type: string }
+        label: { type: string }
+        completed: { type: boolean }
+      required: [id, label, completed]
+    SavedPlanCostAssumptions:
+      type: object
+      properties:
+        includePartner: { type: boolean }
+        includeAgent: { type: boolean }
+        monthlyRent: { type: number, minimum: 0 }
+        government: { type: number, minimum: 0 }
+        settlement: { type: number, minimum: 0 }
+        extras: { type: number, minimum: 0 }
+        total: { type: number, minimum: 0 }
+      required: [includePartner, includeAgent, monthlyRent, government, settlement, extras, total]
+    SavedPlanEvidence:
+      type: object
+      properties:
+        label: { type: string, minLength: 1, maxLength: 60 }
+        value: { type: string, minLength: 1, maxLength: 120 }
+      required: [label, value]
+    SavedPlanPlanningContext:
+      type: object
+      properties:
+        purpose:
+          type: string
+          enum: [Work and settle, Study, Start a business]
+        passportCountry: { type: string, minLength: 1, maxLength: 80 }
+        destination: { type: string, minLength: 1, maxLength: 80 }
+        evidence:
+          type: array
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/SavedPlanEvidence"
+      required: [purpose, passportCountry, destination, evidence]
+    SavedPlanInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        pathway:
+          $ref: "#/components/schemas/SavedPlanPathway"
+        comparison:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/SavedPlanComparisonItem"
+        roadmap:
+          $ref: "#/components/schemas/SavedPlanRoadmap"
+        documentChecklist:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/SavedPlanDocument"
+        costAssumptions:
+          $ref: "#/components/schemas/SavedPlanCostAssumptions"
+        planningContext:
+          anyOf:
+            - $ref: "#/components/schemas/SavedPlanPlanningContext"
+            - type: "null"
+      required: [name, pathway, comparison, roadmap, documentChecklist, costAssumptions]
+    SavedPlanUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        pathway:
+          $ref: "#/components/schemas/SavedPlanPathway"
+        comparison:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/SavedPlanComparisonItem"
+        roadmap:
+          $ref: "#/components/schemas/SavedPlanRoadmap"
+        documentChecklist:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/SavedPlanDocument"
+        costAssumptions:
+          $ref: "#/components/schemas/SavedPlanCostAssumptions"
+        planningContext:
+          anyOf:
+            - $ref: "#/components/schemas/SavedPlanPlanningContext"
+            - type: "null"
+    SavedPlan:
+      allOf:
+        - $ref: "#/components/schemas/SavedPlanInput"
+        - type: object
+          properties:
+            id: { type: string }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+          required: [id, createdAt, updatedAt]
+    SavedPlansResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SavedPlan"
+      required: [items]
