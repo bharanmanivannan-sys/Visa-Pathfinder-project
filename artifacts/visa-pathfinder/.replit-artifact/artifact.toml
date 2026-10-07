@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Visa Pathfinder"
+description = "A trustworthy visa planning web app that helps people compare pathways, understand requirements in plain language, follow step-by-step application roadmaps, estimate total costs, and spot risky migration advice."
+version = "1.0.0"
+id = "artifacts/visa-pathfinder"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21483
+
+[services.development]
+run = "pnpm --filter @workspace/visa-pathfinder run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/visa-pathfinder", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/visa-pathfinder/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21483"
+BASE_PATH = "/"

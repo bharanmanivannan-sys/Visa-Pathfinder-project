@@ -1,0 +1,4 @@
+- [Visa Pathfinder scope](visa-pathfinder-scope.md) — destinations are limited to the 18 configured countries; passport choices stay global and guidance remains purpose-scoped.
+- [Guidance trust model](guidance-trust-model.md) — immigration claims should remain source-tagged, review-dated, and explicitly separated from community context.
+- [Saved plan workspaces](saved-plan-workspaces.md) — persistence uses a signed browser-scoped workspace instead of requiring account auth.
+- [Nullable OpenAPI codegen](nullable-openapi-codegen.md) — keep the canonical nullable union valid and normalize only the Zod generator input when Orval misorders constraints.
